@@ -199,17 +199,15 @@ void adc()
 
 void controls(void *pvParameters)
 {
+	char dirPath[] = "0:";
+	char Lfname[512];
 	char songname[15];
-	int vol=95;
-	int pausePlay=0;
+	int vol = 95;
+	int pausePlay = 0;
 	OSHANDLES *osHandles = (OSHANDLES*)pvParameters;
 	DIR Dir;
 	FILINFO Finfo;
 	FRESULT returnCode = FR_OK;
-	unsigned int fileBytesTotal, numFiles, numDirs;
-	fileBytesTotal = numFiles = numDirs = 0;
-	char Lfname[512];
-	char dirPath[] = "0:";
 
 	vTaskDelay(3000);
 	initPE();
@@ -224,40 +222,6 @@ void controls(void *pvParameters)
 
 		switch(i2cData)
 		{
-			case BUTT7: //BUTT7 = BACK button
-				rprintf("Back.\n");
-				rprintf("nowPlayingIndex: %i, playlistIndex: %i", nowPlayingIndex, playlistIndex);
-				sta013StopDecoder();
-
-				if (nowPlayingIndex==0)
-				{
-					nowPlayingIndex=playlistIndex;
-					xQueueSend(osHandles->queue.songname, songs[nowPlayingIndex].song, 500);
-				}
-				else
-				{
-					xQueueSend(osHandles->queue.songname, songs[nowPlayingIndex--].song, 500);
-				}
-				initialize_sta013();
-				sta013StartDecoder();
-				break;
-			case BUTT6:	//BUTT6 = Pause/Resume button
-				rprintf("pause/Play = %i\n", pausePlay);
-				if(pausePlay==0)
-				{
-					rprintf("Pausing Decoder.\n");
-					sta013PauseDecoder();
-					pausePlay=1;
-				}
-				else
-				{
-					rprintf("Resuming Decoder.\n");
-					sta013ResumeDecoder();
-					//initialize_sta013();
-					sta013StartDecoder();
-					pausePlay=0;
-				}
-				break;
 			case BUTT5:	//BUTT5 = STOP button
 				ledStuff=0x1F;
 				i2cWriteDeviceRegister(PE_ADDR, 2, ledStuff);
@@ -315,76 +279,7 @@ void controls(void *pvParameters)
 					rprintf("No dequeue.\n");
 				}
 				break;
-			case BUTT4:	//BUTT4 = FORWARD button
-				rprintf("Forward.\n");
-				rprintf("nowPlayingIndex: %i, playlistIndex: %i", nowPlayingIndex, playlistIndex);
-				sta013StopDecoder();
-
-				if (nowPlayingIndex==playlistIndex)
-				{
-					xQueueSend(osHandles->queue.songname, songs[0].song, 500);
-					nowPlayingIndex=0;
-				}
-				else
-				{
-					xQueueSend(osHandles->queue.songname, songs[nowPlayingIndex++].song, 500);
-				}
-				initialize_sta013();
-				sta013StartDecoder();
-				break;
-			case BUTT2:	//BUTT2 = Create Playlist button
-				// checks if SD Card is there
-				if (RES_OK != (returnCode = f_opendir(&Dir, dirPath)))
-				{
-					rprintf("Invalid directory: |%s|\n", dirPath);
-					continue;
-				}
-
-				rprintf("Directory listing of: %s\n\n", dirPath);
-				for (;;)
-				{
-					char returnCode = f_readdir(&Dir, &Finfo);
-					Finfo.lfname = Lfname;
-					Finfo.lfsize = sizeof(Lfname);
-
-					if ((FR_OK != returnCode) || !Finfo.fname[0])
-						break;
-
-					if((strstr(Finfo.fname, ".MP3"))||(strstr(Finfo.fname, ".mp3")))
-					{
-						strcpy (songs[playlistIndex].song, Finfo.fname);
-						rprintf("playlistIndex %d\n", playlistIndex);
-						rprintf("%s\n", songs[playlistIndex].song);
-						playlistIndex++;
-					}
-				}
-				break;
-			case BUTT1: //BUTT1 = VOL++ button
-				if(vol==0)
-				{
-					rprintf("Volume Off!!\n");
-				}
-				else
-				{
-					vol--;
-					pcm1774_OutputVolume(vol, vol);
-					rprintf("Decreasing volume, BUTT1: %i\n", vol); // debugging purposes
-				}
-				break;
-			case BUTT0:	//BUTT0 = VOL-- button
-				{
-					if(vol==100)
-					{
-						rprintf("Maximum volume = 100\n");
-					}
-					else
-					{
-						vol++;
-						pcm1774_OutputVolume(vol, vol);
-						rprintf("Increasing volume, BUTT0: %i\n", vol); // debugging purposes
-					}
-					break;
-				}
+			}
 			default:
 				break;
 		}
