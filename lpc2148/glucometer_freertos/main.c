@@ -67,6 +67,54 @@ FIL fdst;
 FRESULT res;
 PLAYLIST songs[20];
 
+int main (void)
+{
+	OSHANDLES System;            // Should contain all OS Handles
+
+	cpuSetupHardware();          // Setup PLL, enable MAM etc.
+	watchdogDelayUs(2000*1000);  // Some startup delay
+	uart0Init(38400, 256);       // 256 is size of Rx/Tx FIFO
+
+	// Use polling version of uart0 to do printf/rprintf before starting FreeRTOS
+	rprintf_devopen(uart0PutCharPolling);
+
+	if(didSystemCrash())
+	{
+		printCrashInfo();
+		clearCrashInfo();
+	}
+	cpuPrintMemoryInfo();
+
+	// Open interrupt-driven version of UART0 Rx/Tx
+	rprintf_devopen(uart0PutChar);
+
+	System.lock.SPI = xSemaphoreCreateMutex();
+	System.queue.songname = xQueueCreate(1,15);
+
+	// Use the WATERMARK command to determine optimal Stack size of each task (set to high, then slowly decrease)
+	// Priorities should be set according to response required
+
+	if(
+		// User Interaction set to lowest priority.
+		pdPASS != xTaskCreate( uartUI, (signed char*)"Uart UI", STACK_BYTES(1024*6), &System, PRIORITY_LOW,  &System.task.userInterface ) ||
+		// diskTimer should always run, and it is a short function, so assign CRITIAL priority.
+		pdPASS != xTaskCreate( diskTimer, (signed char*)"Dtimer", STACK_BYTES(256), &System, PRIORITY_CRITICAL,  &System.task.diskTimer ) ||
+		pdPASS != xTaskCreate( mp3, (signed char*)"mp3", STACK_BYTES(4*1024), &System, PRIORITY_HIGH, &System.task.mp3 ) ||
+		pdPASS != xTaskCreate( controls, (signed char*)"controls", STACK_BYTES(1024*4), &System, PRIORITY_HIGH, &System.task.controls ) ||
+		pdPASS != xTaskCreate( adc, (signed char*)"adc", STACK_BYTES(256), &System, PRIORITY_CRITICAL,  &System.task.adc )
+	)
+	{
+		rprintf("ERROR:  OUT OF MEMORY: Check OS Stack Size or task stack size.\n");
+	}
+
+	rprintf("\n-- Starting FreeRTOS --\n");
+	vTaskStartScheduler();	// This function will not return.
+
+	rprintf_devopen(uart0PutCharPolling);
+	rprintf("ERROR: Unexpected OS Exit!\n");
+	return 0;
+}
+
 void delay_ms(unsigned long count)
 {
 	volatile unsigned long c = count * 4000;
@@ -341,52 +389,4 @@ void controls(void *pvParameters)
 				break;
 		}
 	}
-}
-
-int main (void)
-{
-	OSHANDLES System;            // Should contain all OS Handles
-
-	cpuSetupHardware();          // Setup PLL, enable MAM etc.
-	watchdogDelayUs(2000*1000);  // Some startup delay
-	uart0Init(38400, 256);       // 256 is size of Rx/Tx FIFO
-
-	// Use polling version of uart0 to do printf/rprintf before starting FreeRTOS
-	rprintf_devopen(uart0PutCharPolling);
-
-	if(didSystemCrash())
-	{
-		printCrashInfo();
-		clearCrashInfo();
-	}
-	cpuPrintMemoryInfo();
-
-	// Open interrupt-driven version of UART0 Rx/Tx
-	rprintf_devopen(uart0PutChar);
-
-	System.lock.SPI = xSemaphoreCreateMutex();
-	System.queue.songname = xQueueCreate(1,15);
-
-	// Use the WATERMARK command to determine optimal Stack size of each task (set to high, then slowly decrease)
-	// Priorities should be set according to response required
-
-	if(
-		// User Interaction set to lowest priority.
-		pdPASS != xTaskCreate( uartUI, (signed char*)"Uart UI", STACK_BYTES(1024*6), &System, PRIORITY_LOW,  &System.task.userInterface ) ||
-		// diskTimer should always run, and it is a short function, so assign CRITIAL priority.
-		pdPASS != xTaskCreate( diskTimer, (signed char*)"Dtimer", STACK_BYTES(256), &System, PRIORITY_CRITICAL,  &System.task.diskTimer ) ||
-		pdPASS != xTaskCreate( mp3, (signed char*)"mp3", STACK_BYTES(4*1024), &System, PRIORITY_HIGH, &System.task.mp3 ) ||
-		pdPASS != xTaskCreate( controls, (signed char*)"controls", STACK_BYTES(1024*4), &System, PRIORITY_HIGH, &System.task.controls ) ||
-		pdPASS != xTaskCreate( adc, (signed char*)"adc", STACK_BYTES(256), &System, PRIORITY_CRITICAL,  &System.task.adc )
-	)
-	{
-		rprintf("ERROR:  OUT OF MEMORY: Check OS Stack Size or task stack size.\n");
-	}
-
-	rprintf("\n-- Starting FreeRTOS --\n");
-	vTaskStartScheduler();	// This function will not return.
-
-	rprintf_devopen(uart0PutCharPolling);
-	rprintf("ERROR: Unexpected OS Exit!\n");
-	return 0;
 }
