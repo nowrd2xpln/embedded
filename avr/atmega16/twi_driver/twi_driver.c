@@ -12,5 +12,10 @@
 
 int main(void)
 {
-	
+	usart_msg("Atmega16 Bootup\r\n");
+    usart_msg("INITIALIZING USART\r\n");
+
+	usart_init();
+
+	return 0;
 }
