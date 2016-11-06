@@ -1,10 +1,16 @@
 #include <avr/io.h>
+#include <stdint.h>
 #include "usart.h"
 
-void usart_init()
+void usart_init(uint32_t baud)
 {
-    UBRRH = 0x00;                       			//--- Initialize UBRR value for Baud Rate
-    UBRRL = BAUDRATE;                       		//--- Baud Rate Set as 9600 by Data Sheet
+	uint16_t baudrate = 0;
+	uint16_t ubrr = 0;
+	char msg[32] = {0};
+	
+	baudrate = F_CPU/baud/16UL - 1;
+	UBRRH = 0;
+	UBRRL = baudrate+1;                    			//--- Calculation is somehow off by 1
     UCSRB = (1<<TXEN) | (1<<RXEN);      			//--- Transmit and Receive Enable
     UCSRC|= (1<<URSEL) | (1<<UCSZ0) | (1<<UCSZ1);	//--- Set the number of bits in a frame for RX/TX
 }

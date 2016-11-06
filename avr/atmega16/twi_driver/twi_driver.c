@@ -3,19 +3,21 @@
 
 #ifndef NULL
 #define NULL 0
-#endif /* NULL */
+#endif /*0 NULL */
 
 /* F_CPU & BAUD RATE */
 #define F_CPU       8000000UL	            //--- CPU Clock Frequency    
-#define BAUD        9600                    //--- Transmission Baud Rate
-#define BAUDRATE    ((F_CPU)/(BAUD*16UL)-1)	//--- Set baud rate value for UBRR
 
 int main(void)
 {
-	usart_msg("Atmega16 Bootup\r\n");
-    usart_msg("INITIALIZING USART\r\n");
+	usart_init(57600);
+	
+	usart_msg("\r\n\r\nAtmega16 Bootup\r\n");
+    usart_msg("Intializing USART\r\n");
 
-	usart_init();
-
+	while(1)
+	{
+		
+	}
 	return 0;
 }
