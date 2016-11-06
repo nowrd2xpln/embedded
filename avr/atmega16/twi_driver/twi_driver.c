@@ -1,5 +1,6 @@
 #include <avr/io.h>
 #include "usart.h"
+#include "twi.h"
 
 #ifndef NULL
 #define NULL 0
@@ -10,14 +11,17 @@
 
 int main(void)
 {
+	DDRB = 0xff;
+	PORTB = 0xFF;
+
 	usart_init(57600);
-	
+	twi_init();
+
 	usart_msg("\r\n\r\nAtmega16 Bootup\r\n");
     usart_msg("Intializing USART\r\n");
 
-	while(1)
-	{
-		
-	}
+
+	twi_read_byte();
+	
 	return 0;
 }
